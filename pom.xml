@@ -22,7 +22,8 @@
         <mapstruct.version>1.6.3</mapstruct.version>
         <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
         <springdoc.version>2.6.0</springdoc.version>
-        <testcontainers.version>1.20.4</testcontainers.version>
+        <testcontainers.version>1.21.3</testcontainers.version>
+        <docker-java.version>3.7.1</docker-java.version>
     </properties>
 
     <dependencies>
@@ -95,6 +96,11 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>
@@ -115,11 +121,59 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <!-- Force docker-java to a version that negotiates Docker API >= 1.40.
+                 The testcontainers BOM pins 3.4.2, whose default API 1.32 is
+                 rejected by OrbStack 29.x and recent moby/dockerd. -->
+            <dependency>
+                <groupId>com.github.docker-java</groupId>
+                <artifactId>docker-java-api</artifactId>
+                <version>${docker-java.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.docker-java</groupId>
+                <artifactId>docker-java-transport</artifactId>
+                <version>${docker-java.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.docker-java</groupId>
+                <artifactId>docker-java-transport-zerodep</artifactId>
+                <version>${docker-java.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.docker-java</groupId>
+                <artifactId>docker-java-core</artifactId>
+                <version>${docker-java.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!-- Docker 29 daemons (OrbStack, Colima with recent moby)
+                         require API >= 1.40. Testcontainers' shaded docker-java
+                         defaults to 1.32 — nudge it forward via the same env
+                         var / system property docker-java reads on startup.
+                         DOCKER_HOST points at Colima's socket so we don't
+                         depend on /var/run/docker.sock (which may symlink to
+                         a different runtime or be absent on macOS). -->
+                    <environmentVariables>
+                        <DOCKER_API_VERSION>1.43</DOCKER_API_VERSION>
+                        <DOCKER_HOST>unix://${env.HOME}/.colima/default/docker.sock</DOCKER_HOST>
+                        <!-- Ryuk (the test-container reaper) can't start under
+                             Colima's default mount config. Disabling it is
+                             standard practice; the JVM still cleans up via
+                             @Container shutdown hooks. -->
+                        <TESTCONTAINERS_RYUK_DISABLED>true</TESTCONTAINERS_RYUK_DISABLED>
+                    </environmentVariables>
+                    <systemPropertyVariables>
+                        <api.version>1.43</api.version>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
