@@ -20,9 +20,9 @@ flowchart LR
 
     subgraph app[Spring Boot service]
         ctrl[Controllers]
-        svc[TransactionService\n@Transactional + SELECT FOR UPDATE]
+        svc["TransactionService — @Transactional + SELECT FOR UPDATE"]
         repo_jpa[JPA repositories]
-        adv[GlobalExceptionHandler\nRestControllerAdvice]
+        adv["GlobalExceptionHandler — @RestControllerAdvice"]
         meter[Micrometer counters]
         prom_ep[/actuator/prometheus/]
 
@@ -34,11 +34,11 @@ flowchart LR
         prom_ep -..-> meter
     end
 
-    repo_jpa --> db[(PostgreSQL 16\naccounts · transactions\nledger_entries)]
+    repo_jpa --> db[(PostgreSQL 16 — accounts / transactions / ledger_entries)]
 
     client --> ctrl
     prometheus[Prometheus] -- scrape every 5s --> prom_ep
-    grafana[Grafana\nprovisioned dashboard] --> prometheus
+    grafana[Grafana provisioned dashboard] --> prometheus
 ```
 
 ### Transfer flow
